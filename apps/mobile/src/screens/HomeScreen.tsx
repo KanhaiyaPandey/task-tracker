@@ -29,7 +29,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 interface Props {
-  navigation: HomeScreenNavigationProp;
+  readonly navigation: HomeScreenNavigationProp;
 }
 
 export default function HomeScreen({ navigation }: Props) {
@@ -68,6 +68,39 @@ export default function HomeScreen({ navigation }: Props) {
     navigation.reset({ index: 0, routes: [{ name: 'Landing' }] });
   }
 
+  function renderBody() {
+    if (isLoading) return <Loader />;
+    if (isError) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Failed to load tasks.</Text>
+          <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <FlatList
+        data={tasks}
+        keyExtractor={(item) => item._id}
+        renderItem={({ item }) => (
+          <TaskCard
+            task={item}
+            onToggle={(id, completed) => toggleMutation.mutate({ id, completed })}
+            onEdit={(id, title, description) => editMutation.mutate({ id, title, description })}
+            onDelete={handleDelete}
+          />
+        )}
+        ListEmptyComponent={<EmptyState />}
+        onRefresh={refetch}
+        refreshing={isLoading}
+        contentContainerStyle={[styles.list, !tasks?.length && styles.listEmpty]}
+        showsVerticalScrollIndicator={false}
+      />
+    );
+  }
+
   function handleDelete(id: string) {
     Alert.alert('Delete Task', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
@@ -89,34 +122,7 @@ export default function HomeScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.body}>
-        {isLoading ? (
-          <Loader />
-        ) : isError ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Failed to load tasks.</Text>
-            <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
-              <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <FlatList
-            data={tasks}
-            keyExtractor={(item) => item._id}
-            renderItem={({ item }) => (
-              <TaskCard
-                task={item}
-                onToggle={(id, completed) => toggleMutation.mutate({ id, completed })}
-                onEdit={(id, title, description) => editMutation.mutate({ id, title, description })}
-                onDelete={handleDelete}
-              />
-            )}
-            ListEmptyComponent={<EmptyState />}
-            onRefresh={refetch}
-            refreshing={isLoading}
-            contentContainerStyle={[styles.list, !tasks?.length && styles.listEmpty]}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+        {renderBody()}
       </View>
 
       <TaskForm
@@ -132,6 +138,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  flex: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
