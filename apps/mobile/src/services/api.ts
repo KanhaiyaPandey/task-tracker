@@ -10,17 +10,35 @@ function devLog(message: string, data?: Record<string, unknown>) {
   else console.log('[mobile][api]', message);
 }
 
-function getDevHostFromBundleUrl(): string | null {
+function getDevHost(): string | null {
   const scriptURL = (NativeModules as any)?.SourceCode?.scriptURL;
-  if (typeof scriptURL !== 'string' || scriptURL.length === 0) return null;
-  try {
-    const url = new URL(scriptURL);
-    return url.hostname || null;
-  } catch {
-    // Fallback for non-standard URLs
-    const m = scriptURL.match(/https?:\/\/([^/:]+)/i);
-    return m?.[1] ?? null;
+  if (typeof scriptURL === 'string' && scriptURL.length > 0) {
+    try {
+      const url = new URL(scriptURL);
+      return url.hostname || null;
+    } catch {
+      const m = scriptURL.match(/https?:\/\/([^/:]+)/i);
+      if (m?.[1]) return m[1];
+    }
   }
+
+  const exponentConstants = (NativeModules as any)?.ExponentConstants;
+  const manifest =
+    exponentConstants?.manifest ??
+    (typeof exponentConstants?.manifestString === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(exponentConstants.manifestString);
+          } catch {
+            return null;
+          }
+        })()
+      : null);
+
+  const hostUri = manifest?.hostUri ?? manifest?.debuggerHost ?? null;
+  if (typeof hostUri === 'string' && hostUri.length > 0) return hostUri.split(':')[0] ?? null;
+
+  return null;
 }
 
 function getApiBaseUrl(): string {
@@ -28,15 +46,15 @@ function getApiBaseUrl(): string {
   if (typeof fromEnv === 'string' && fromEnv.trim().length > 0) return fromEnv.trim();
 
   if (__DEV__) {
-    const host = getDevHostFromBundleUrl();
+    const host = getDevHost();
     if (host) {
       // On Android emulator, "localhost" points at the emulator, not your dev machine.
       const resolvedHost = Platform.OS === 'android' && host === 'localhost' ? '10.0.2.2' : host;
-      return `http://10.109.182.138:4000/api`;
+      return `http://${resolvedHost}:4000/api`;
     }
   }
 
-  return 'http://10.109.182.138:4000/api';
+  return 'http://localhost:4000/api';
 }
 
 export const api = axios.create({
@@ -51,7 +69,16 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-if (__DEV__) devLog('baseURL', { baseURL: api.defaults.baseURL });
+if (__DEV__) {
+  const baseURL = api.defaults.baseURL;
+  devLog('baseURL', { baseURL });
+  if (typeof baseURL === 'string' && (baseURL.includes('localhost:4000') || baseURL.includes('127.0.0.1:4000'))) {
+    devLog('baseURL:warning', {
+      message:
+        'If you are using a physical phone, localhost will fail. Set EXPO_PUBLIC_API_URL to your machine IP, e.g. http://10.x.x.x:4000/api',
+    });
+  }
+}
 
 export async function saveToken(token: string) {
   await AsyncStorage.setItem(TOKEN_KEY, token);
@@ -68,11 +95,11 @@ export async function clearToken() {
 // Auth
 export async function loginRequest(email: string, password: string) {
   const startedAt = Date.now();
-  devLog('POST /auth/login:start', { email });
+  devLog('POST /auth/login:start', { email, passwordPresent: Boolean(password), passwordLength: password.length });
   try {
     const res = await api.post<{ token: string }>('/auth/login', { email, password });
     devLog('POST /auth/login:success', {
-      email,password,
+      email,
       ms: Date.now() - startedAt,
       tokenReceived: Boolean(res.data?.token),
       tokenLength: res.data?.token?.length,
@@ -91,7 +118,12 @@ export async function loginRequest(email: string, password: string) {
 
 export async function registerRequest(name: string, email: string, password: string) {
   const startedAt = Date.now();
-  devLog('POST /auth/register:start', { name, email });
+  devLog('POST /auth/register:start', {
+    name,
+    email,
+    passwordPresent: Boolean(password),
+    passwordLength: password.length,
+  });
   try {
     const res = await api.post('/auth/register', { name, email, password });
     devLog('POST /auth/register:success', { name, email, ms: Date.now() - startedAt });
