@@ -46,11 +46,20 @@ export default function LoginScreen({ navigation }: Props) {
   async function handleLogin() {
     if (!validate()) return;
     setLoading(true);
+    if (__DEV__) console.log('[mobile][auth] login:submit', { email: email.trim() });
     try {
       const { token } = await loginRequest(email.trim(), password);
       await saveToken(token);
+      if (__DEV__) console.log('[mobile][auth] login:success', { email: email.trim(), tokenSaved: true });
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (err: any) {
+      if (__DEV__) {
+        console.log('[mobile][auth] login:error', {
+          email: email.trim(),
+          status: err?.response?.status,
+          message: err?.response?.data?.message ?? err?.message,
+        });
+      }
       const msg = err?.response?.data?.message ?? 'Login failed. Please try again.';
       Alert.alert('Error', msg);
     } finally {

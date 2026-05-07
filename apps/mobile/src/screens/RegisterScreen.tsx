@@ -48,12 +48,21 @@ export default function RegisterScreen({ navigation }: Props) {
   async function handleRegister() {
     if (!validate()) return;
     setLoading(true);
+    if (__DEV__) console.log('[mobile][auth] register:submit', { name: name.trim(), email: email.trim() });
     try {
       await registerRequest(name.trim(), email.trim(), password);
+      if (__DEV__) console.log('[mobile][auth] register:success', { email: email.trim() });
       Alert.alert('Account created', 'Please sign in.', [
         { text: 'OK', onPress: () => navigation.navigate('Login') },
       ]);
     } catch (err: any) {
+      if (__DEV__) {
+        console.log('[mobile][auth] register:error', {
+          email: email.trim(),
+          status: err?.response?.status,
+          message: err?.response?.data?.message ?? err?.message,
+        });
+      }
       const msg = err?.response?.data?.message ?? 'Registration failed. Please try again.';
       Alert.alert('Error', msg);
     } finally {
