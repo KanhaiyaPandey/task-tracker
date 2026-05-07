@@ -32,11 +32,11 @@ function getApiBaseUrl(): string {
     if (host) {
       // On Android emulator, "localhost" points at the emulator, not your dev machine.
       const resolvedHost = Platform.OS === 'android' && host === 'localhost' ? '10.0.2.2' : host;
-      return `http://${resolvedHost}:4000/api`;
+      return `http://10.109.182.138:4000/api`;
     }
   }
 
-  return 'http://localhost:4000/api';
+  return 'http://10.109.182.138:4000/api';
 }
 
 export const api = axios.create({
