@@ -24,6 +24,7 @@ interface Props {
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
 
@@ -94,14 +95,22 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Password</Text>
+              <View style={styles.passwordHeader}>
+                <Text style={styles.label}>Password</Text>
+                <TouchableOpacity
+                  onPress={() => setShowPassword((v) => !v)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.passwordToggle}>{showPassword ? 'Hide' : 'Show'}</Text>
+                </TouchableOpacity>
+              </View>
               <TextInput
                 style={[styles.input, errors.password ? styles.inputError : null]}
                 placeholder="••••••••"
                 placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                secureTextEntry={!showPassword}
               />
               {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
             </View>
@@ -136,6 +145,8 @@ const styles = StyleSheet.create({
   subheading: { fontSize: 15, color: '#6B7280', marginBottom: 36 },
   form: { gap: 20 },
   field: { gap: 6 },
+  passwordHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  passwordToggle: { fontSize: 13, color: '#2563EB', fontWeight: '600' },
   label: { fontSize: 14, fontWeight: '500', color: '#374151' },
   input: {
     borderWidth: 1.5,
