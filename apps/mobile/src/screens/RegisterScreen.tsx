@@ -8,15 +8,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  SafeAreaView,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { registerRequest } from '../services/api';
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
 interface Props {
-  navigation: RegisterScreenNavigationProp;
+  readonly navigation: RegisterScreenNavigationProp;
 }
 
 export default function RegisterScreen({ navigation }: Props) {
@@ -24,33 +26,38 @@ export default function RegisterScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [loading, setLoading] = useState(false);
 
   function validate(): boolean {
     const next: { name?: string; email?: string; password?: string } = {};
-
-    if (!name.trim()) {
-      next.name = 'Name is required';
-    }
-
+    if (!name.trim()) next.name = 'Name is required';
     if (!email.trim()) {
       next.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       next.email = 'Enter a valid email address';
     }
-
     if (!password) {
       next.password = 'Password is required';
     } else if (password.length < 6) {
       next.password = 'Password must be at least 6 characters';
     }
-
     setErrors(next);
     return Object.keys(next).length === 0;
   }
 
-  function handleRegister() {
-    if (validate()) {
-      // API integration goes here
+  async function handleRegister() {
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      await registerRequest(name.trim(), email.trim(), password);
+      Alert.alert('Account created', 'Please sign in.', [
+        { text: 'OK', onPress: () => navigation.navigate('Login') },
+      ]);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Registration failed. Please try again.';
+      Alert.alert('Error', msg);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -60,10 +67,7 @@ export default function RegisterScreen({ navigation }: Props) {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <Text style={styles.heading}>Create account</Text>
           <Text style={styles.subheading}>Sign up to get started</Text>
 
@@ -111,11 +115,12 @@ export default function RegisterScreen({ navigation }: Props) {
             </View>
 
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={[styles.primaryButton, loading && styles.buttonDisabled]}
               onPress={handleRegister}
+              disabled={loading}
               activeOpacity={0.85}
             >
-              <Text style={styles.primaryButtonText}>Register</Text>
+              <Text style={styles.primaryButtonText}>{loading ? 'Creating...' : 'Register'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -132,41 +137,14 @@ export default function RegisterScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 32,
-  },
-  heading: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 6,
-  },
-  subheading: {
-    fontSize: 15,
-    color: '#6B7280',
-    marginBottom: 36,
-  },
-  form: {
-    gap: 20,
-  },
-  field: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-  },
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  flex: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 40, paddingBottom: 32 },
+  heading: { fontSize: 28, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  subheading: { fontSize: 15, color: '#6B7280', marginBottom: 36 },
+  form: { gap: 20 },
+  field: { gap: 6 },
+  label: { fontSize: 14, fontWeight: '500', color: '#374151' },
   input: {
     borderWidth: 1.5,
     borderColor: '#D1D5DB',
@@ -177,13 +155,8 @@ const styles = StyleSheet.create({
     color: '#111827',
     backgroundColor: '#F9FAFB',
   },
-  inputError: {
-    borderColor: '#EF4444',
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#EF4444',
-  },
+  inputError: { borderColor: '#EF4444' },
+  errorText: { fontSize: 12, color: '#EF4444' },
   primaryButton: {
     backgroundColor: '#2563EB',
     borderRadius: 12,
@@ -191,21 +164,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkRow: {
-    marginTop: 32,
-    alignItems: 'center',
-  },
-  linkText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  linkHighlight: {
-    color: '#2563EB',
-    fontWeight: '600',
-  },
+  buttonDisabled: { opacity: 0.6 },
+  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  linkRow: { marginTop: 32, alignItems: 'center' },
+  linkText: { fontSize: 14, color: '#6B7280' },
+  linkHighlight: { color: '#2563EB', fontWeight: '600' },
 });

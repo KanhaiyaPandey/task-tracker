@@ -8,44 +8,53 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  SafeAreaView,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { loginRequest, saveToken } from '../services/api';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 interface Props {
-  navigation: LoginScreenNavigationProp;
+  readonly navigation: LoginScreenNavigationProp;
 }
 
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [loading, setLoading] = useState(false);
 
   function validate(): boolean {
     const next: { email?: string; password?: string } = {};
-
     if (!email.trim()) {
       next.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       next.email = 'Enter a valid email address';
     }
-
     if (!password) {
       next.password = 'Password is required';
     } else if (password.length < 6) {
       next.password = 'Password must be at least 6 characters';
     }
-
     setErrors(next);
     return Object.keys(next).length === 0;
   }
 
-  function handleLogin() {
-    if (validate()) {
-      // API integration goes here
+  async function handleLogin() {
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      const { token } = await loginRequest(email.trim(), password);
+      await saveToken(token);
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Login failed. Please try again.';
+      Alert.alert('Error', msg);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -55,10 +64,7 @@ export default function LoginScreen({ navigation }: Props) {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <Text style={styles.heading}>Welcome back</Text>
           <Text style={styles.subheading}>Sign in to your account</Text>
 
@@ -92,11 +98,12 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
 
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={[styles.primaryButton, loading && styles.buttonDisabled]}
               onPress={handleLogin}
+              disabled={loading}
               activeOpacity={0.85}
             >
-              <Text style={styles.primaryButtonText}>Login</Text>
+              <Text style={styles.primaryButtonText}>{loading ? 'Signing in...' : 'Login'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -113,41 +120,14 @@ export default function LoginScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 32,
-  },
-  heading: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 6,
-  },
-  subheading: {
-    fontSize: 15,
-    color: '#6B7280',
-    marginBottom: 36,
-  },
-  form: {
-    gap: 20,
-  },
-  field: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-  },
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  flex: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 40, paddingBottom: 32 },
+  heading: { fontSize: 28, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  subheading: { fontSize: 15, color: '#6B7280', marginBottom: 36 },
+  form: { gap: 20 },
+  field: { gap: 6 },
+  label: { fontSize: 14, fontWeight: '500', color: '#374151' },
   input: {
     borderWidth: 1.5,
     borderColor: '#D1D5DB',
@@ -158,13 +138,8 @@ const styles = StyleSheet.create({
     color: '#111827',
     backgroundColor: '#F9FAFB',
   },
-  inputError: {
-    borderColor: '#EF4444',
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#EF4444',
-  },
+  inputError: { borderColor: '#EF4444' },
+  errorText: { fontSize: 12, color: '#EF4444' },
   primaryButton: {
     backgroundColor: '#2563EB',
     borderRadius: 12,
@@ -172,21 +147,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkRow: {
-    marginTop: 32,
-    alignItems: 'center',
-  },
-  linkText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  linkHighlight: {
-    color: '#2563EB',
-    fontWeight: '600',
-  },
+  buttonDisabled: { opacity: 0.6 },
+  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  linkRow: { marginTop: 32, alignItems: 'center' },
+  linkText: { fontSize: 14, color: '#6B7280' },
+  linkHighlight: { color: '#2563EB', fontWeight: '600' },
 });
