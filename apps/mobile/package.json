@@ -2,7 +2,7 @@
   "name": "@task-tracker/mobile",
   "private": true,
   "version": "0.0.0",
-  "main": "expo/AppEntry",
+  "main": "index.js",
   "scripts": {
     "dev": "expo start",
     "build": "expo export",
