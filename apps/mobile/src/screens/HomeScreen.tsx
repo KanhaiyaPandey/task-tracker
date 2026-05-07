@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -55,6 +57,12 @@ export default function HomeScreen({ navigation }: Props) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
   });
 
+  const editMutation = useMutation({
+    mutationFn: ({ id, title, description }: { id: string; title: string; description: string }) =>
+      updateTaskRequest(id, { title, description }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+
   async function handleLogout() {
     await clearToken();
     navigation.reset({ index: 0, routes: [{ name: 'Landing' }] });
@@ -69,6 +77,10 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Task Tracker</Text>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} activeOpacity={0.7}>
@@ -94,6 +106,7 @@ export default function HomeScreen({ navigation }: Props) {
               <TaskCard
                 task={item}
                 onToggle={(id, completed) => toggleMutation.mutate({ id, completed })}
+                onEdit={(id, title, description) => editMutation.mutate({ id, title, description })}
                 onDelete={handleDelete}
               />
             )}
@@ -110,6 +123,7 @@ export default function HomeScreen({ navigation }: Props) {
         onSubmit={(title, description) => createMutation.mutate({ title, description })}
         loading={createMutation.isPending}
       />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
